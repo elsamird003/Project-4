@@ -1,2 +1,2 @@
-COVID_test:
-		 gcc COVID_test.c -g -o COVID_test
+test_running: main.c
+	gcc main.c -g -o test_running
