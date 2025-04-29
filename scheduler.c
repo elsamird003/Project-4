@@ -3,6 +3,8 @@
 #include <stdlib.h>
 
 #include <sys/types.h>
+#include <stdlib.h>
+#include <time.h>
 
 #include <unistd.h>
 // fork that are three children
@@ -56,113 +58,93 @@ int main(int argv[], char** argc){
 
     // need to create the pipes first because after using fork, the memory address will change and we want to keep it the same at the moment
      
-    pid_t p1  = fork();
-    if(p1 == -1){
-      perror("Error in the fork ");
-      exit(1);
-    }
-    pid_t p2;
-    
-    pid_t p3;
-    if (p1 != 0)   // parent process,
-    {
-      p2 = fork();
-      if(p2 == -1){
-        perror("Error in the fork ");
-        exit(1);
-      }
-      if (p2 != 0)
-      {
-          p3 = fork();
-          
-          if(p3 == -1){
-            perror("Error in the fork ");
-            exit(1);
-          }
-          if (p3 != 0){
-            //  means we are in th e main function 
-             close(parent_to_child[0][0]); //clossing read end of the pipe
-             close(parent_to_child[1][0]);
-              close(parent_to_child[2][0]);
+  
+    for(int i = 0; i <3 ; i++){
+    int core_status[3] = {0,0,0};   // 0  is iddle. 1 is busy and 2 is done
+    int n;
 
-              // close the write end of the child pipe
-
-              close (child_to_parent[0][1]);
-              close (child_to_parent[1][1]);
-              close (child_to_parent[2][1]);
-          }
-        }
-      }
-    if (p1 == 0) {  // child process 1
-      close(parent_to_child[0][1]); //clossing write end of the pipe
-      close(parent_to_child[1][1]);
-      close(parent_to_child[2][1]);
-
-      //close the read end of this pipe 
-       close(parent_to_child[1][0]);
-       close (parent_to_child[2][0]);
-
-       // close the reading end of the pipe because we don't care about the reading end of child to parent pipes 
-
-      close (child_to_parent[0][0]);
-      close (child_to_parent[1][0]);
-      close (child_to_parent[2][0]);
-
-      close (child_to_parent[1][1]); // close the write part of the child
-      close (child_to_parent[2][1]);
-
-
-
-    }
-    if (p2 ==0 ){
-   // child process 2
-        close(parent_to_child[0][1]); //clossing write end of the pipe
-        close(parent_to_child[1][1]);
-        close(parent_to_child[2][1]);
-  
-        //close the read end of this pipe 
-          close(parent_to_child[0][0]);
-         close (parent_to_child[2][0]);
-  
-         // close the reading end of the pipe because we don't care about the reading end of child to parent pipes 
-  
-        close (child_to_parent[0][0]);
-        close (child_to_parent[1][0]);
-        close (child_to_parent[2][0]);
-  
-        close (child_to_parent[0][1]); // close the write part of the child
-        close (child_to_parent[2][1]);
-  
-      
-    }
-    if (p3 == 0 ){
-        // child process 3
-        close(parent_to_child[0][1]); //clossing write end of the pipe
-        close(parent_to_child[1][1]);
-        close(parent_to_child[2][1]);
-  
-        //close the read end of this pipe 
-          close(parent_to_child[0][0]);
-         close (parent_to_child[1][0]);
-  
-         // close the reading end of the pipe because we don't care about the reading end of child to parent pipes 
-  
-        close (child_to_parent[0][0]);
-        close (child_to_parent[1][0]);
-        close (child_to_parent[2][0]);
-  
-        close (child_to_parent[0][1]); // close the write part of the child
-        close (child_to_parent[1][1]);
-  
-    } 
-
-  
-   
-   typedef struct{
+    int task_num = atoi(argv[1]);  //number of tasks
+    int max_bit = atoi(argv[2]);   // max number of bits
+    int counter = 0;
+     typedef struct{
      int task_id; // the task id
      int n;
+    
    }  Data;
    
+
+      pid_t f= fork();
+      for(int j =0;j < 3 ; j++){
+        close(child_to_parent[j][0]);
+        close(parent_to_child[j][1]);
+
+         if(i != j){   // pipe that is not for me, close those end of the pipe 
+           close(child_to_parent[j][1]);
+           close(parent_to_child[j][0]);
+         }
+      }  
+        
+        if(f ==0){ // child
+           Data data;  
+             read(parent_to_child[i][0], &data, sizeof(data)); // read the parent to child
+             no_interrupt_sleep(1);
+             // EXTRACT LEFT MOST BITS FROM THE TASK ID
+
+             data.task_id  >> (32 - data.n); // shift the bits to the left
+
+            /// as a child i need to be able to read and receive task 
+
+        }
+
+        if(f > 0 ){ // parent
+            typedef struct{
+           int task_id; // the task id
+            int n;
+        }  Data;
+        
+                 // keeps tracks of the core 
+    
+            
+            while (counter < task_num){
+              
+              n = rand() % max_bit + 1;
+              Data data = {counter, n}; 
+            //send the numbers to the pipes
+            for(int i = 0; i < 3; i++){
+           if (core_status[i] == 0){ // if the core is idle, then write to the pipe
+               write(child_to_parent[i][1], &data, sizeof(data)); // write to the 
+               core_status[i] = 1; // busy
+
+               
+             counter++;
+            }
+            if (core_status[i] == 2){ 
+               int message ; 
+              read(child_to_parent[i][0], &message, sizeof(message));
+             
+               core_status[i]= 0;
+            // write(parent_to_child[counter%3 ][1],&data, sizeof(data));   //reading is  0, writing is 1
+              
+           
+
+            // "
+            }
+               }
+
+            }
+
+         if (f < 0 ) {// won't work 
+
+
+         }
+
+
+    }
+
+
+  
+   
+
       
     int n;
 
@@ -186,12 +168,13 @@ int main(int argv[], char** argc){
     
   
     
+  
     return 0; 
 
 
     
   
-
+    }
 
 
 
@@ -200,9 +183,3 @@ int main(int argv[], char** argc){
   
   }
 
-  void left_shifting(int n){
-
-
-    
-
-  }
