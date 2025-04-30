@@ -41,6 +41,7 @@ int main(int argc, char** argv){
     //first arg is name of program, second is num of cores, and third is the max rand int
     printf("error, we need 3 arguments passed in\n");
 
+
   } 
 
 
@@ -57,14 +58,14 @@ int main(int argc, char** argv){
    /// keep it simple, stores the pid, and call it to the process
 
     // need to create the pipes first because after using fork, the memory address will change and we want to keep it the same at the moment
-       int core_status[3] = {0,0,0};   // 0  is idle. 1 is busy and 2 is done
+    int core_status[3] = {0,0,0};   // 0  is idle. 1 is busy and 2 is done
     int n;
   
     int task_num = atoi(argv[1]);  //number of tasks
     int max_bit = atoi(argv[2]);   // max number of bits
     int counter = 0;
   
-    for(int i = 0; i <3 ; i++){
+    for(int i = 0; i < 3 ; i++){
   
    
 
@@ -78,6 +79,11 @@ int main(int argc, char** argv){
            close(parent_to_child[j][0]);
          }
       }  
+        if (f < 0 ) {// won't work 
+           perror("fork doesn't work");
+           exit(1);
+
+         }
         
         if(f ==0){ // child
              Data data; 
@@ -86,10 +92,12 @@ int main(int argc, char** argv){
              no_interrupt_sleep(1);
              // EXTRACT LEFT MOST BITS FROM THE TASK ID
  
-          int message =    data.task_id  >> (32 - data.n); // shift the bits to the left
-                write(child_to_parent[message][1], &data, sizeof(data)); 
+         // shift the bits to the left
+               int message_result = data.task_id >> (32 - data.n);
+                write(child_to_parent[i][1], &message_result, sizeof(message_result));
+ 
             /// as a child i need to be able to read and receive task 
-               exit(0);
+          
         }
 
         if(f > 0 ){ // parent
@@ -104,7 +112,7 @@ int main(int argc, char** argv){
             //send the numbers to the pipes
             for(int i = 0; i < 3; i++){
            if (core_status[i] == 0){ // if the core is idle, then write to the pipe
-               write(child_to_parent[i][1], &data, sizeof(data)); // write to the 
+               write(parent_to_child[i][1], &data, sizeof(data)); // write to the 
                core_status[i] = 1; // busy
 
                
@@ -117,26 +125,19 @@ int main(int argc, char** argv){
                core_status[i]= 0;
             // write(parent_to_child[counter%3 ][1],&data, sizeof(data));   //reading is  0, writing is 1
               
-              exit(0);
 
             // "
             }
+            if (core_status[i] == 1){
+               printf("Busy core%d" , i);
                }
 
             }
 
-         if (f < 0 ) {// won't work 
-
-
-         }
+       
 
 
     }
-
-
-  
-   
-
       
 int n;
 
