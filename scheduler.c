@@ -6,10 +6,12 @@
 #include <time.h>
 #include <errno.h>
 #include <unistd.h>
+
+#include <signal.h>
 // fork that are three children
 // i HAVE A PARENT THAT FORKS TO THREEE CHILDREN
 // note Notice that the main function is not equivalent to the main process even though they have similar names.
-
+  int core_status[3] = {0,0,0};   // 0  is idle. 1 is busy and 2 is done
 void no_interrupt_sleep(int sec)
 {
     // * advanced sleep which will not be interfered by signals
@@ -88,7 +90,7 @@ int main(int argc, char** argv){
         if(f ==0){ // child
              Data data; 
              int ID = 0;
-             read(parent_to_child[i][0], &data, sizeof(data)); // read the parent to child
+            while (read(parent_to_child[i][0], &data, sizeof(data))){ // read the parent to child
              no_interrupt_sleep(1);
              // EXTRACT LEFT MOST BITS FROM THE TASK ID
  
@@ -97,28 +99,34 @@ int main(int argc, char** argv){
                 write(child_to_parent[i][1], &message_result, sizeof(message_result));
  
             /// as a child i need to be able to read and receive task 
-          
+                // the child needs used KILL TO SIGNAL THE PARENT 
+        } 
+        exit(0); //exit the child
         }
+
 
         if(f > 0 ){ // parent
          
                  // keeps tracks of the core 
     
             
-            while (counter < task_num){
+            while (counter < task_num){   /// I only want the while loop to run if there is task able to run. THERE IS TASKS TO RUN
+            // COUNTE ACTS ASK TASK_ID
+             //  Maybe creating another variable 
+             // 
               
               n = rand() % max_bit + 1;
               Data data = {counter, n}; 
             //send the numbers to the pipes
             for(int i = 0; i < 3; i++){
-           if (core_status[i] == 0){ // if the core is idle, then write to the pipe
-               write(parent_to_child[i][1], &data, sizeof(data)); // write to the 
-               core_status[i] = 1; // busy
+              if (core_status[i] == 0){ // if the core is idle, then write to the pipe
+                  write(parent_to_child[i][1], &data, sizeof(data)); // write to the 
+                  core_status[i] = 1; // busy
 
-               
+               // break out of the for loop
              counter++;
             }
-            if (core_status[i] == 2){ 
+            if (core_status[i] == 2){  //2 means is done
                int message ; 
               read(child_to_parent[i][0], &message, sizeof(message));
              
@@ -139,24 +147,24 @@ int main(int argc, char** argv){
 
     }
       
-int n;
+      int n;
 
-  int task_num = atoi(argv[1]);  //number of tasks
-    int max_bit = atoi(argv[2]);   // max number of bits
-  int counter = 0;
+      int task_num = atoi(argv[1]);  //number of tasks
+      int max_bit = atoi(argv[2]);   // max number of bits
+      int counter = 0;
 
   
-  while (counter < task_num){
+  // while (counter < task_num){
     
-    n = rand() % max_bit + 1;
-    Data data = {counter, n}; 
-    //send the numbers to the pipes
+  //   n = rand() % max_bit + 1;
+  //   Data data = {counter, n}; 
+  //   //send the numbers to the pipes
 
-    write(parent_to_child[counter%3 ][1],&data, sizeof(data));   //reading is  0, writing is 1
+  //   write(parent_to_child[counter%3 ][1],&data, sizeof(data));   //reading is  0, writing is 1
       
-    counter++;
+  //   counter++;
 
-  }
+  // }
 
 
 
@@ -169,7 +177,34 @@ int n;
   
     }
 
+    void signal_handler(int signo) {
+    if (signo == SIGUSR1) {
+        printf("Main process received SIGUSR1 signal\n");
 
+    }
+        
+    }
+
+    }
+//     Handle_new_result_from_core1()
+//       Handle the new result…
+
+// Main_process()
+//       Register SIGUSR1 with signal handler Handle_new_result_from_core1
+//       While there are still unsolved tasks
+//             Assign an unsolved and unassigned task to the next idle core
+
+// Core(core_id=1)
+//       While the main_to_core1 pipe is not closed
+//             Wait for a new task
+//             Process the new task
+//             Push the result to core1_to_main and send a signal SIGUSR1 to main process
+
+
+
+
+// we only want to read from the process only when we know that the process is done we need to check the while loop if the status is 2
+// we use KILL send a signal to the process and we are going to send it to tghe parent process
 
  
   //  printf("Hello World!\n");
